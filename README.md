@@ -452,6 +452,38 @@ The dashboard ([`deploy/platform/monitoring/dashboards/roadscan.json`](deploy/pl
 is provisioned from the repository. Data is kept on the node's disk for up to three days
 and is gone after the cluster is stopped; the demo has no alerting.
 
+### Load test
+
+[`loadtest/`](loadtest/README.md) holds a k6 script that starts photo analyses at a fixed
+rate per minute, the way independent users arrive, and steps the rate up every two
+minutes. Run on AKS (profile `free`, application node with 2 vCPUs, real detector and
+language model) on 2026-11-14 with 24 photos from the RDD2022 test split, from one client
+with the per-address limits raised for the test:
+
+| Analyses started per minute | Completed per minute | Median time | 95th percentile | Errors |
+| --- | --- | --- | --- | --- |
+| 6 | 5.8 | 0.7 s | 12 s | none |
+| 12 | 11.0 | 5.6 s | 18 s | none |
+| 24 | 15.4 | 32 s | 54 s | none |
+| 36 | 15.8 | 53 s | 81 s | none |
+| 48 | 17.4 | 99 s | 120 s | 20 × `503` (the 120 s model timeout) |
+
+Times are measured by k6 from upload to answer. The node handles about 15 to 17 analyses
+per minute; beyond that the requests wait in front of the language model (one generation
+at a time on two CPU threads, which share the node with the detector) until the
+application gives up after 120 s and answers `503`. The CPU of the Ray pod stays at the
+node's two cores during the last three steps.
+
+![Grafana dashboard during the load test](docs/grafana-loadtest.png)
+
+The first runs found a real defect: Ray Serve lets a replica handle five requests at a
+time by default, and every analysis waiting for the language model held one of the API
+replica's five slots. Under load, logins and health checks queued behind them and timed
+out after 60 s. The same would have happened with five viewers of the live-traffic page,
+whose event streams stay open for two minutes. The API replica now accepts 200 requests
+at once (`serving/src/app/api.py`); after the change all logins succeeded during the same
+test.
+
 To remove everything: `terraform destroy` in `infra/` (described in
 [`infra/README.md`](infra/README.md#destroy); documented, not yet exercised on this
 deployment).

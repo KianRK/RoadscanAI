@@ -42,5 +42,11 @@ make deploy TAG=<tag>    # limits back to normal
 Watch it in Grafana (`make grafana`, dashboard "RoadScan"): the queue in front of the
 `Describer` and the analysis latency show where the application saturates.
 
+Results of the run on AKS are in the main README ("Load test").
+
+Pitfall: k6 clears a virtual user's cookies before every iteration unless
+`noCookiesReset` is set (it is, in `analyze.js`); without it every second analysis of a
+reused user answers `401`.
+
 Photos: any road photos work. The results in the main README used images from the
 RDD2022 test split (Japan, India, Czech), which are not part of the repository.

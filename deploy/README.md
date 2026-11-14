@@ -174,6 +174,12 @@ used; Grafana's data source health check passes and the dashboard renders. minik
 not enforce network policies, so the Prometheus rule of the Ray pod's policy is tested on
 AKS only.
 
+Monitoring on AKS, 2026-11-14 (Kubernetes 1.36, `free` profile): `make platform-install`
+re-run on the existing cluster (it needed `--force-conflicts`, see `install.sh`);
+Prometheus and Grafana run on the system node; all scrape targets are up, including the
+Ray head through its network policy (Cilium), so the policy's Prometheus rule works;
+dashboard checked during three load-test runs (README, "Load test").
+
 Verified on AKS (Kubernetes 1.36, `free` profile, Sweden Central): the certificate was
 issued within three minutes of the first deployment, HTTP redirects to HTTPS, and the
 smoke test passes over HTTPS, which covers the Key Vault mount, the workload identity and
