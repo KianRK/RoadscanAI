@@ -108,7 +108,15 @@ async def within[T](call: Awaitable[T], seconds: float, what: str) -> T:
         ) from None
 
 
-@serve.deployment
+# Requests this replica handles at once. Ray's default (5) counts every open request: an
+# analysis waiting for the language model and a live-traffic event stream (up to two
+# minutes) each hold a slot, so under load logins and health checks queued behind them
+# (load test on AKS, 2026-11-14: logins timed out after 60 s). The handlers are async and
+# cheap; the models have their own limits.
+API_MAX_ONGOING_REQUESTS = 200
+
+
+@serve.deployment(max_ongoing_requests=API_MAX_ONGOING_REQUESTS)
 @serve.ingress(fastapi_app)
 class Api:
     def __init__(

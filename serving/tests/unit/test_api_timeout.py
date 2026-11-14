@@ -23,3 +23,17 @@ def test_unavailable_model_becomes_503_instead_of_waiting() -> None:
         return never
 
     assert asyncio.run(scenario()).cancelled()
+
+
+def test_api_replica_accepts_more_requests_than_slow_ones_can_occupy() -> None:
+    """Event streams and analyses waiting for the LLM hold Api slots; logins must still fit."""
+    from typing import cast
+
+    from ray.serve import Deployment
+
+    from app.api import Api
+    from app.settings import AppArgs
+
+    limit = cast(Deployment, Api).max_ongoing_requests  # the decorator returns a Deployment
+    args = AppArgs()
+    assert limit >= 2 * (args.traffic.max_viewers + args.auth.analyze_client_limit.limit)
