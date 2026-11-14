@@ -44,6 +44,9 @@ function stagesFor(profile) {
 }
 
 export const options = {
+  // Each virtual user logs in once and keeps its session cookie. By default k6 clears the
+  // cookie jar before every iteration, and every second analysis then answered 401.
+  noCookiesReset: true,
   scenarios: {
     analyze: {
       executor: 'ramping-arrival-rate',
