@@ -15,7 +15,11 @@ PROMETHEUS_CHART_VERSION=29.47.2 # Prometheus v3.16.0
 GRAFANA_CHART_VERSION=14.4.1     # Grafana 13.3.1
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-helm_install() { helm upgrade --install --create-namespace --wait --timeout 10m "$@"; }
+# --force-conflicts: on AKS the admissions enforcer co-owns fields of webhook
+# configurations (cert-manager's namespaceSelector), and Helm 4's server-side apply would
+# refuse every upgrade after the first install. The enforcer sets its fields again at
+# admission, so taking them over loses nothing.
+helm_install() { helm upgrade --install --create-namespace --wait --timeout 10m --force-conflicts "$@"; }
 
 echo "==> Envoy Gateway ${ENVOY_GATEWAY_VERSION} (brings the Gateway API CRDs)"
 helm_install envoy-gateway oci://docker.io/envoyproxy/gateway-helm \
