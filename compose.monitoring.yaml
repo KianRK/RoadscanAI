@@ -1,0 +1,54 @@
+# Override: Prometheus and Grafana next to the local stack, with the dashboard the cluster
+# uses (deploy/platform/monitoring/dashboards/roadscan.json).
+#   make compose-up MONITORING=1           # or compose-up-models MONITORING=1
+#   docker compose -f compose.yaml [-f compose.models.yaml] -f compose.monitoring.yaml up --build
+# Grafana: http://localhost:3000, user admin, password $GRAFANA_ADMIN_PASSWORD (default
+# roadscan-dev). Prometheus: http://localhost:9090. Both keep their data in memory only.
+# There is no Envoy and no kubelet here, so the dashboard's "Gateway (Envoy)" and
+# "Resources" panels stay empty.
+services:
+  serving:
+    # `serve run` alone starts Ray with random metrics ports. Start the head first with a
+    # fixed one (as KubeRay does on the cluster); `serve run` then joins it via RAY_ADDRESS.
+    entrypoint:
+      - sh
+      - -c
+      - ray start --head --metrics-export-port=8080 --dashboard-host=127.0.0.1 --disable-usage-stats >/dev/null && exec "$$@"
+      - ray-head
+    environment:
+      RAY_ADDRESS: auto
+
+  prometheus:
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=1d
+    volumes:
+      - ./deploy/compose/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    tmpfs: ["/prometheus:uid=65534,gid=65534"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  grafana:
+    image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-roadscan-dev}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./deploy/compose/monitoring/grafana:/etc/grafana/provisioning:ro
+      - ./deploy/platform/monitoring/dashboards:/etc/grafana/dashboards/roadscan:ro
+    tmpfs: ["/var/lib/grafana:uid=472,gid=0,exec", /tmp]
+    ports:
+      - "127.0.0.1:3000:3000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [prometheus]

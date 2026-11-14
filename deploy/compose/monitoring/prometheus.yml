@@ -1,0 +1,17 @@
+# Prometheus for the local compose stack (compose.monitoring.yaml). Scrapes the Ray head's
+# metrics port in the serving container; the labels mimic the cluster's pod labels.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: ray
+    static_configs:
+      - targets: ["serving:8080"]
+        labels:
+          namespace: roadscan
+          pod: serving
+    metric_relabel_configs:
+      # Labels Ray adds to every series that only change with a restart of Ray.
+      - action: labeldrop
+        regex: SessionName|Version

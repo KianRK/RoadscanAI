@@ -21,6 +21,8 @@ HOURS ?= 2
 # Load generator for `make loadtest` (k6 2.3.0) and its load profile (loadtest/analyze.js).
 K6_IMAGE := grafana/k6:2.3.0@sha256:2dd4756ec6e14e62778916e1eb850108e4b499304c02df56760fa0bdb0fba0b8
 PROFILE ?= ramp
+# MONITORING=1 adds Prometheus + Grafana to compose-up / compose-up-models.
+COMPOSE_MONITORING := $(if $(MONITORING),-f compose.monitoring.yaml)
 
 .PHONY: help install lint format typecheck test check data-download data-prepare train traffic-model media mlflow-ui serve-local serve-models frontend-dev docker-build compose-up compose-up-models compose-down model-fetch smoke-test infra-check infra-plan infra-apply chart-check platform-install deploy-local aks-credentials images-push deploy demo-up demo-down demo-status github-setup grafana loadtest
 
@@ -87,7 +89,7 @@ docker-build: ## Build the three images (training, serving, frontend)
 	docker build -t roadscan-frontend:local frontend
 
 compose-up: ## Run frontend + backend in containers with dummy models at http://localhost:8080
-	docker compose up --build --detach --wait
+	docker compose -f compose.yaml $(COMPOSE_MONITORING) up --build --detach --wait
 	@echo "Open http://localhost:8080 (password: $(ROADSCAN_DEMO_PASSWORD)). Stop with: make compose-down"
 
 model-fetch: ## Copy the registered "production" detectors to ./models (for compose-up-models)
@@ -101,11 +103,11 @@ model-fetch: ## Copy the registered "production" detectors to ./models (for comp
 compose-up-models: ## Same with the real detector and LLM (needs `make model-fetch` once)
 	@test -f models/roadscan-detector/model.onnx -a -f models/roadscan-traffic/model.onnx \
 		|| { echo "Run first: make model-fetch (after make train and make traffic-model)"; exit 1; }
-	docker compose -f compose.yaml -f compose.models.yaml up --build --detach --wait
+	docker compose -f compose.yaml -f compose.models.yaml $(COMPOSE_MONITORING) up --build --detach --wait
 	@echo "Open http://localhost:8080 (password: $(ROADSCAN_DEMO_PASSWORD)). Stop with: make compose-down"
 
 compose-down: ## Stop the containers
-	docker compose down
+	docker compose down --remove-orphans
 
 smoke-test: ## Check a running stack end to end (URL=http://localhost:8080)
 	python3 scripts/smoke_test.py $(or $(URL),http://localhost:8080)

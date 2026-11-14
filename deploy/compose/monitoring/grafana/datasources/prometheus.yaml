@@ -1,0 +1,11 @@
+# Same data source uid as on the cluster (deploy/platform/monitoring/grafana.yaml), which
+# the dashboard refers to.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

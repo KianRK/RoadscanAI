@@ -361,7 +361,13 @@ make compose-down
 
 make model-fetch         # once: copy the registered "production" detectors to ./models
 make compose-up-models   # the same stack with the real detectors, LLM and traffic videos
+
+make compose-up-models MONITORING=1   # plus Prometheus (:9090) and Grafana (:3000, admin / roadscan-dev)
 ```
+
+`MONITORING=1` (either target) adds `compose.monitoring.yaml`: Prometheus scrapes the Ray
+head and Grafana shows the cluster's `RoadScan` dashboard. The gateway and resource panels
+stay empty locally (no Envoy, no kubelet).
 
 | Image | Base | Compressed size | Runs as |
 | --- | --- | --- | --- |
