@@ -1,6 +1,6 @@
 # RoadScan
 
-[![CI](https://github.com/KianRK/infrastructai/actions/workflows/ci.yml/badge.svg)](https://github.com/KianRK/infrastructai/actions/workflows/ci.yml)
+[![CI](https://github.com/KianRK/RoadscanAI/actions/workflows/ci.yml/badge.svg)](https://github.com/KianRK/RoadscanAI/actions/workflows/ci.yml)
 
 End-to-end road damage analysis: upload a road photo, an object detector trained on
 RDD2022 localises the damage, and a small self-hosted language model describes it. A

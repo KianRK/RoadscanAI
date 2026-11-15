@@ -110,7 +110,7 @@ variable "github_subject_prefix" {
     older ones "repo:<owner>/<name>".
   EOT
   type        = string
-  default     = "repo:KianRK@101524407/infrastructai@1454543143"
+  default     = "repo:KianRK@101524407/RoadscanAI@1454543143"
 
   validation {
     condition     = startswith(var.github_subject_prefix, "repo:")
