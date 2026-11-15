@@ -322,13 +322,28 @@ as it would for a live source.
   server-sent events; it draws the result that belongs to the frame on screen. The
   server closes the event stream every two minutes and the browser reconnects, so no
   proxy timeout is involved.
-- **Statistics:** objects in view, objects counted since the analysis started and in
-  the last minute, per class, and the analysis speed.
+- **Statistics,** computed on the server per stream and sent with every result:
+  - *Flow:* road users counted since the start and in the last 60 seconds, per class;
+    the average per minute of analysis time (pauses without viewers excluded, shown
+    after the first minute); a trend of new road users per 15-second interval over the
+    last 10 minutes.
+  - *Composition:* the class mix of everything counted, with the shares of heavy
+    vehicles (bus, truck) and of pedestrians and two-wheelers (computed in the browser).
+  - *Density:* road users in view now, and their mean and peak over the last minute.
+  - *Congestion level:* low, moderate or high, from the mean number in view over the last
+    minute against the stream's own mean since the start (below 0.8 times: low; from
+    1.25 times: high). Reported after two minutes of analysis.
+  - The analysis speed (frames per second, model time per frame, skipped frames).
 
-Limits: the counts are estimates. There is no ground truth for the videos, and an object
-that is hidden for more than three seconds is counted again. The tracker settings
-(`serving/src/app/settings.py`) were chosen by looking at these two videos. The
-deployment keeps the clock and the counters in memory, so it runs as one replica.
+Limits: the counts are estimates. There is no ground truth for the videos; an object
+that is hidden for more than three seconds is counted again, and road users already in
+view when the analysis starts, resumes or the video loops are shown but not counted,
+because when they arrived is unknown. The congestion level is a heuristic relative to
+each camera's own normal, not a traffic-engineering measure; with a looped clip,
+"normal" is the clip's average. Speeds are not estimated: the cameras are not
+calibrated. The tracker and statistics settings (`serving/src/app/settings.py`) were
+chosen by looking at these two videos. The deployment keeps the clock and the counters
+in memory, so it runs as one replica.
 
 Videos (not in the repository; `serving/media/streams.json` holds the sources and
 checksums): "Straßenverkehr in Düsseldorf" by Slick, CC0 1.0, and "Moving vehicles in
@@ -342,11 +357,18 @@ make serve-local    # terminal 1: backend with dummy models
 make frontend-dev   # terminal 2: http://localhost:5173, password "roadscan-dev"
 ```
 
-React + TypeScript + Vite. Login screen, image upload with client-side validation (JPEG, PNG,
-WebP; 10 MB), the photo with bounding boxes and labels, the assessment (summary, then recommended
-actions per damage type) with its source (language model or template), and loading, error and session-expired states. Boxes use
-the API's relative coordinates, so they stay aligned at any display size. The second page
-(`#traffic`) shows the two analysed videos with their statistics.
+React + TypeScript + Vite, styled like an operations console: a top bar with the pages,
+the service state and a UTC clock; dark and light schemes following the system setting;
+figures in a monospace face with tabular digits. No UI library and no web fonts (the
+Content-Security-Policy allows nothing from other origins).
+
+Login screen, image upload with client-side validation (JPEG, PNG, WebP; 10 MB), the photo
+with bounding boxes and labels, the assessment (summary, then recommended actions per
+damage type) with its source (language model or template), and loading, error and
+session-expired states. Boxes use the API's relative coordinates, so they stay aligned at
+any display size. The second page (`#traffic`) is a dashboard per camera: the video with
+the tracked boxes, key figures, the flow trend (inline SVG), the class mix, a per-class
+table and the congestion level.
 
 ## Containers
 
@@ -532,7 +554,7 @@ deployment).
   no GPU image is built and it was never run; the free trial has no GPU quota.
 - **`terraform destroy`** is documented but was not exercised.
 - **Traffic counts are estimates**; the tracker settings were tuned by eye on the two
-  videos.
+  videos, and the congestion level is a heuristic (see [Live traffic](#live-traffic)).
 - **Not verified on AKS:** the live-traffic page in a real browser (it was measured
   through the API there and tested in a browser locally), and the gateway's rate limit
   with several viewers behind one address.
