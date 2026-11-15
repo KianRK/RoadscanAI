@@ -41,7 +41,7 @@ def test_frames_are_analysed_when_their_time_has_come() -> None:
     assert event.t == 0.0
     assert {o.label for o in event.objects} >= {"person", "car"}
     assert event.stats.in_view["person"] == 1
-    assert event.stats.counted["person"] == 1
+    assert event.stats.counted == {}  # in view from the start: arrival unknown, not counted
 
     event, wait = stream.advance(EPOCH + 0.05)  # the next one (t=0.2) is not
     assert event is None

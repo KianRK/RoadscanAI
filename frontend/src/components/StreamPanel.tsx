@@ -229,7 +229,8 @@ export function StreamPanel({
                 {stats.dropped_frames > 0
                   ? `, ${String(stats.dropped_frames)} frames skipped`
                   : ''}
-                . Counts are estimates: an object that is hidden for a while is counted again.
+                . Counts are estimates: an object that is hidden for a while is counted again, and
+                road users already in view when the analysis starts are not counted.
                 {stats.congestion
                   ? ' Congestion compares the last minute with this camera’s own average.'
                   : ''}

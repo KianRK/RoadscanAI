@@ -64,5 +64,7 @@ def test_events_arrive_as_server_sent_events_and_the_connection_ends(
     assert [e.seq for e in events] == sorted({e.seq for e in events})
     assert all(e.stream == "test-street" and 0 <= e.t < 2.0 for e in events)
     assert events[-1].stats.in_view == {"car": 1}
-    assert events[-1].stats.counted["car"] >= 1
+    # The fake model sees the same car in every frame, from the first one on: it was
+    # there before the analysis started, so it is never counted.
+    assert events[-1].stats.counted == {}
     assert events[-1].stats.analysis_fps > 0

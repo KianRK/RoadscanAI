@@ -7,6 +7,12 @@ def car(x: float, label: str = "car", confidence: float = 0.9) -> Observation:
     return Observation(label, confidence, (x, 0.4, x + 0.2, 0.6))
 
 
+def started(tracker: Tracker) -> Tracker:
+    """A tracker past its first frame (an empty road), so new objects are counted."""
+    tracker.update([])
+    return tracker
+
+
 def test_iou() -> None:
     box: Box = (0.0, 0.0, 0.2, 0.2)
     assert iou(box, box) == pytest.approx(1.0)
@@ -15,7 +21,7 @@ def test_iou() -> None:
 
 
 def test_a_moving_object_keeps_its_identity_and_is_counted_once() -> None:
-    tracker = Tracker(iou_threshold=0.3, max_missed=2, min_hits=3)
+    tracker = started(Tracker(iou_threshold=0.3, max_missed=2, min_hits=3))
     counted: list[str] = []
     seen: list[list[int]] = []
     for step in range(6):
@@ -29,7 +35,7 @@ def test_a_moving_object_keeps_its_identity_and_is_counted_once() -> None:
 
 
 def test_counting_can_wait_longer_than_showing() -> None:
-    tracker = Tracker(min_hits=2, count_hits=4)
+    tracker = started(Tracker(min_hits=2, count_hits=4))
     results = [tracker.update([car(0.1)]) for _ in range(5)]
 
     assert [len(visible) for visible, _ in results] == [0, 1, 1, 1, 1]
@@ -46,7 +52,7 @@ def test_two_objects_are_told_apart() -> None:
 
 
 def test_a_short_gap_does_not_create_a_new_object() -> None:
-    tracker = Tracker(max_missed=2, min_hits=1)
+    tracker = started(Tracker(max_missed=2, min_hits=1))
     counted = tracker.update([car(0.1)])[1]
     visible, confirmed = tracker.update([])  # missed in one frame
     assert visible == []
@@ -67,6 +73,23 @@ def test_an_object_that_stays_away_is_forgotten() -> None:
 
     assert [track.id for track in visible] == [2]
     assert confirmed == ["car"]
+
+
+def test_objects_in_view_when_tracking_starts_are_shown_but_not_counted() -> None:
+    tracker = Tracker(min_hits=1, count_hits=2)
+    counted: list[str] = []
+    for step in range(4):
+        # The bus is there from the start; the car arrives in the second frame.
+        observations = [car(0.6, "bus")] + ([car(0.1 + 0.02 * step)] if step else [])
+        visible, confirmed = tracker.update(observations)
+        counted += confirmed
+    assert sorted(track.label for track in visible) == ["bus", "car"]
+    assert counted == ["car"]
+
+    tracker.reset()  # the video jumped: what is in view now arrived unseen
+    _, confirmed = tracker.update([car(0.3)])
+    _, confirmed_next = tracker.update([car(0.31)])
+    assert confirmed + confirmed_next == []
 
 
 def test_the_class_with_the_most_support_wins() -> None:

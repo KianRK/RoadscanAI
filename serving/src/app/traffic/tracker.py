@@ -31,6 +31,9 @@ class Track:
     confidence: float
     hits: int = 1
     missed: int = 0
+    # Already in view when tracking (re)started: when it arrived is unknown, so it is
+    # shown but never counted.
+    preexisting: bool = False
     # Confidence mass per class: detectors flip between e.g. car and truck from frame
     # to frame, the track reports the class with the most support.
     votes: defaultdict[str, float] = field(default_factory=lambda: defaultdict(float))
@@ -67,16 +70,20 @@ class Tracker:
         self._count_hits = min_hits if count_hits is None else count_hits
         self._tracks: list[Track] = []
         self._next_id = 1
+        self._first_frame = True
 
     def reset(self) -> None:
         """Forget all objects (the video jumped). Identifiers are not reused."""
         self._tracks = []
+        self._first_frame = True
 
     def update(self, observations: list[Observation]) -> tuple[list[Track], list[str]]:
         """Feed the detections of the next frame.
 
         Returns the tracks to show for this frame, and the class of every track that
-        is to be counted now (each track once).
+        is to be counted now (each track once). Objects in the first frame after the
+        start or a reset are not counted: they arrived while nothing was analysed, and
+        counting them all at once would show as a burst in the rates.
         """
         pairs = sorted(
             (
@@ -100,7 +107,7 @@ class Tracker:
             track.votes[observation.label] += observation.confidence
             track.hits += 1
             track.missed = 0
-            if track.hits == self._count_hits:
+            if track.hits == self._count_hits and not track.preexisting:
                 confirmed.append(track.label)
 
         for t, track in enumerate(self._tracks):
@@ -111,12 +118,18 @@ class Tracker:
         for o, observation in enumerate(observations):
             if o in matched_observations:
                 continue
-            track = Track(self._next_id, observation.box, observation.confidence)
+            track = Track(
+                self._next_id,
+                observation.box,
+                observation.confidence,
+                preexisting=self._first_frame,
+            )
             track.votes[observation.label] += observation.confidence
             self._next_id += 1
             self._tracks.append(track)
-            if self._count_hits == 1:
+            if self._count_hits == 1 and not track.preexisting:
                 confirmed.append(track.label)
+        self._first_frame = False
 
         visible = [
             track for track in self._tracks if track.missed == 0 and track.hits >= self._min_hits
