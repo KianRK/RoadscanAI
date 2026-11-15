@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -24,6 +26,25 @@ class StreamStats(_Schema):
         description="Distinct tracked objects since the analysis started, per class."
     )
     per_minute: int = Field(description="Objects newly counted in the last 60 seconds.")
+    per_minute_by_class: dict[str, int] = Field(
+        description="`per_minute` per class: newly counted in the last 60 seconds."
+    )
+    average_per_minute: dict[str, float] = Field(
+        description="Counted per class and minute of analysis time; empty for the first minute."
+    )
+    analysis_seconds: float = Field(
+        ge=0, description="Time spent analysing since the start, pauses without viewers excluded."
+    )
+    trend: list[int] = Field(
+        description="Newly counted per bucket of analysis time, oldest first; the last is filling."
+    )
+    trend_bucket_seconds: float = Field(gt=0)
+    occupancy_mean: float = Field(ge=0, description="Mean objects in view, last 60 seconds.")
+    occupancy_peak: int = Field(ge=0, description="Most objects in view, last 60 seconds.")
+    congestion: Literal["low", "moderate", "high"] | None = Field(
+        description="Occupancy of the last minute against the stream's long-run mean "
+        "(a heuristic); null until enough has been analysed."
+    )
     analysis_fps: float = Field(description="Frames analysed per second, last 10 seconds.")
     inference_ms: float = Field(description="Mean model time per frame, last 10 seconds.")
     dropped_frames: int = Field(description="Frames skipped because the analysis was behind.")

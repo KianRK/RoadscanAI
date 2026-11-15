@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _Args(BaseModel):
@@ -126,6 +126,23 @@ class _TrafficArgs(_Args):
     track_max_missed: int = Field(default=15, ge=0)
     track_min_hits: int = Field(default=3, ge=1)
     track_count_hits: int = Field(default=8, ge=1)
+    # Statistics. The trend is the number of newly counted road users per bucket of
+    # analysis time (pauses without viewers leave no gap), the newest bucket last.
+    trend_bucket_seconds: float = Field(default=15.0, gt=0)
+    trend_buckets: int = Field(default=40, ge=2)
+    # Congestion compares the mean number of road users in view over the last minute
+    # with the stream's mean since the analysis started: below the first factor it is
+    # "low", from the second on "high". A heuristic relative to the camera's own normal;
+    # not reported before ``congestion_min_seconds`` of analysis.
+    congestion_thresholds: tuple[float, float] = (0.8, 1.25)
+    congestion_min_seconds: float = Field(default=120.0, ge=0)
+
+    @model_validator(mode="after")
+    def _check_congestion_thresholds(self) -> Self:
+        low, high = self.congestion_thresholds
+        if not 0 < low < high:
+            raise ValueError("congestion_thresholds must be increasing and positive")
+        return self
 
 
 class DummyTrafficArgs(_TrafficArgs):

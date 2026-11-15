@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
+from typing import Literal
 
 Box = tuple[float, float, float, float]  # x_min, y_min, x_max, y_max, relative to the frame
 
@@ -123,33 +124,114 @@ class Tracker:
         return visible, confirmed
 
 
+Congestion = Literal["low", "moderate", "high"]
+
+
 class StreamStatistics:
-    """Running numbers for one stream. Times are seconds on the caller's clock."""
+    """Running numbers for one stream. Times are seconds on the caller's clock.
+
+    "Analysis time" is the time during which frames were analysed: a gap longer than
+    ``MAX_FRAME_GAP`` between two frames (the analysis paused for lack of viewers) does
+    not count, so averages are not diluted by the pauses.
+    """
 
     RATE_WINDOW = 60.0
     SPEED_WINDOW = 10.0
+    MAX_FRAME_GAP = 2.0
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        trend_bucket_seconds: float = 15.0,
+        trend_buckets: int = 40,
+        congestion_thresholds: tuple[float, float] = (0.8, 1.25),
+        congestion_min_seconds: float = 120.0,
+    ) -> None:
         self.counted: Counter[str] = Counter()
         self.dropped_frames = 0
-        self._counted_at: deque[float] = deque()
+        self.analysis_seconds = 0.0
+        self.trend_bucket_seconds = trend_bucket_seconds
+        self._trend: deque[int] = deque(maxlen=trend_buckets)
+        self._buckets_started = 0
+        self._thresholds = congestion_thresholds
+        self._congestion_min_seconds = congestion_min_seconds
+        self._last_frame: float | None = None
+        self._counted_at: deque[tuple[float, str]] = deque()
         self._frames: deque[tuple[float, float]] = deque()  # (time, inference seconds)
+        self._in_view: deque[tuple[float, int]] = deque()  # (time, objects in view)
+        self._in_view_total = 0  # summed over every analysed frame, for the long-run mean
+        self._frame_count = 0
 
-    def frame(self, now: float, inference_seconds: float, confirmed: list[str]) -> None:
+    def frame(
+        self, now: float, inference_seconds: float, confirmed: list[str], in_view: int = 0
+    ) -> None:
+        if self._last_frame is not None and 0 < now - self._last_frame <= self.MAX_FRAME_GAP:
+            self.analysis_seconds += now - self._last_frame
+        self._last_frame = now
+        # Buckets follow analysis time; the newest one is still filling.
+        while self._buckets_started <= int(self.analysis_seconds // self.trend_bucket_seconds):
+            self._trend.append(0)
+            self._buckets_started += 1
+        self._trend[-1] += len(confirmed)
+
         self.counted.update(confirmed)
-        self._counted_at.extend(now for _ in confirmed)
+        self._counted_at.extend((now, label) for label in confirmed)
         self._frames.append((now, inference_seconds))
+        self._in_view.append((now, in_view))
+        self._in_view_total += in_view
+        self._frame_count += 1
         self._expire(now)
 
     def _expire(self, now: float) -> None:
-        while self._counted_at and now - self._counted_at[0] > self.RATE_WINDOW:
+        while self._counted_at and now - self._counted_at[0][0] > self.RATE_WINDOW:
             self._counted_at.popleft()
         while self._frames and now - self._frames[0][0] > self.SPEED_WINDOW:
             self._frames.popleft()
+        while self._in_view and now - self._in_view[0][0] > self.RATE_WINDOW:
+            self._in_view.popleft()
 
     @property
     def per_minute(self) -> int:
         return len(self._counted_at)
+
+    @property
+    def per_minute_by_class(self) -> dict[str, int]:
+        return dict(Counter(label for _, label in self._counted_at))
+
+    @property
+    def average_per_minute(self) -> dict[str, float]:
+        """Counted per class and minute of analysis time; empty for the first minute."""
+        if self.analysis_seconds < self.RATE_WINDOW:
+            return {}
+        minutes = self.analysis_seconds / 60
+        return {label: count / minutes for label, count in self.counted.items()}
+
+    @property
+    def trend(self) -> list[int]:
+        return list(self._trend)
+
+    @property
+    def occupancy_mean(self) -> float:
+        """Mean number of road users in view over the last minute."""
+        if not self._in_view:
+            return 0.0
+        return sum(count for _, count in self._in_view) / len(self._in_view)
+
+    @property
+    def occupancy_peak(self) -> int:
+        return max((count for _, count in self._in_view), default=0)
+
+    @property
+    def congestion(self) -> Congestion | None:
+        if self.analysis_seconds < self._congestion_min_seconds or self._frame_count == 0:
+            return None
+        normal = self._in_view_total / self._frame_count
+        if normal <= 0:
+            return "low"
+        ratio = self.occupancy_mean / normal
+        low, high = self._thresholds
+        if ratio < low:
+            return "low"
+        return "high" if ratio >= high else "moderate"
 
     @property
     def analysis_fps(self) -> float:

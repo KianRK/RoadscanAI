@@ -53,7 +53,12 @@ class StreamWorker:
         self._tracker = Tracker(
             args.track_iou, args.track_max_missed, args.track_min_hits, args.track_count_hits
         )
-        self._stats = StreamStatistics()
+        self._stats = StreamStatistics(
+            args.trend_bucket_seconds,
+            args.trend_buckets,
+            args.congestion_thresholds,
+            args.congestion_min_seconds,
+        )
         self._epoch = epoch
         # The loop length is that of the video the browser plays; the analysis copy may
         # differ from it by a fraction of a frame.
@@ -114,7 +119,7 @@ class StreamWorker:
         metrics.TRAFFIC_SECONDS.observe(elapsed, tags={"stream": self.meta.id})
         metrics.TRAFFIC_FRAMES.inc(tags={"stream": self.meta.id, "result": "analysed"})
         visible, confirmed = self._tracker.update(observations)
-        self._stats.frame(now, elapsed, confirmed)
+        self._stats.frame(now, elapsed, confirmed, len(visible))
         event = StreamEvent(
             stream=self.meta.id,
             seq=0,  # assigned when the event is published
@@ -127,6 +132,16 @@ class StreamWorker:
                 in_view=dict(Counter(t.label for t in visible)),
                 counted=dict(self._stats.counted),
                 per_minute=self._stats.per_minute,
+                per_minute_by_class=self._stats.per_minute_by_class,
+                average_per_minute={
+                    label: round(rate, 2) for label, rate in self._stats.average_per_minute.items()
+                },
+                analysis_seconds=round(self._stats.analysis_seconds, 1),
+                trend=self._stats.trend,
+                trend_bucket_seconds=self._stats.trend_bucket_seconds,
+                occupancy_mean=round(self._stats.occupancy_mean, 2),
+                occupancy_peak=self._stats.occupancy_peak,
+                congestion=self._stats.congestion,
                 analysis_fps=round(self._stats.analysis_fps, 1),
                 inference_ms=round(self._stats.inference_ms, 1),
                 dropped_frames=self._stats.dropped_frames,

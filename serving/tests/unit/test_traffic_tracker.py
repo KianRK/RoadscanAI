@@ -103,3 +103,78 @@ def test_statistics_use_sliding_windows() -> None:
     assert stats.per_minute == 0
     assert stats.analysis_fps == 0.0
     assert stats.inference_ms == pytest.approx(50.0)
+
+
+def test_rates_per_class_over_the_last_minute_and_on_average() -> None:
+    stats = StreamStatistics()
+    now = 100.0
+    # Two minutes of analysis at 5 frames per second: a car every 2 s, a bus every 10 s.
+    for step in range(600):
+        now = 100.0 + step * 0.2
+        confirmed = (["car"] if step % 10 == 0 else []) + (["bus"] if step % 50 == 0 else [])
+        stats.frame(now, 0.01, confirmed, in_view=2)
+
+    assert stats.analysis_seconds == pytest.approx(119.8)
+    assert stats.per_minute_by_class == {"car": 30, "bus": 6}
+    average = stats.average_per_minute
+    assert average["car"] == pytest.approx(60 / (119.8 / 60))
+    assert average["bus"] == pytest.approx(12 / (119.8 / 60))
+
+
+def test_averages_wait_for_a_minute_and_ignore_pauses() -> None:
+    stats = StreamStatistics()
+    for step in range(100):  # 19.8 s of analysis
+        stats.frame(100.0 + step * 0.2, 0.01, ["car"] if step == 0 else [])
+    assert stats.average_per_minute == {}
+
+    # Nobody watched for an hour; the analysis resumes for another 50 s.
+    for step in range(251):
+        stats.frame(4000.0 + step * 0.2, 0.01, [])
+    assert stats.analysis_seconds == pytest.approx(19.8 + 50.0)
+    assert stats.average_per_minute["car"] == pytest.approx(1 / (69.8 / 60))
+
+
+def test_trend_buckets_follow_analysis_time() -> None:
+    stats = StreamStatistics(trend_bucket_seconds=10.0, trend_buckets=3)
+    stats.frame(100.0, 0.01, ["car"])
+    stats.frame(105.0, 0.01, ["car", "bus"])  # 5 s later: a pause, no analysis time passed
+    assert stats.trend == [3]
+
+    # 15 s more at 5 frames per second; one car at 8 s, one at 12 s of analysis time.
+    for step in range(1, 76):
+        stats.frame(105.0 + step * 0.2, 0.01, ["car"] if step in (40, 60) else [])
+    assert stats.analysis_seconds == pytest.approx(15.0)
+    assert stats.trend == [4, 1]
+
+    for step in range(76, 251):  # 35 s more: only the newest three buckets are kept
+        stats.frame(105.0 + step * 0.2, 0.01, [])
+    assert stats.trend == [0, 0, 0]
+
+
+def congestion(stats: StreamStatistics) -> str | None:
+    # Read through a call: mypy would otherwise keep the property narrowed between asserts.
+    return stats.congestion
+
+
+def test_occupancy_and_congestion_against_the_streams_own_normal() -> None:
+    stats = StreamStatistics(congestion_thresholds=(0.8, 1.25), congestion_min_seconds=120.0)
+    now = 0.0
+    for step in range(900):  # three minutes with 2 objects in view
+        now = step * 0.2
+        stats.frame(now, 0.01, [], in_view=2)
+        if step == 300:
+            assert congestion(stats) is None  # one minute is not enough to know "normal"
+    assert stats.occupancy_mean == pytest.approx(2.0)
+    assert congestion(stats) == "moderate"
+
+    for step in range(1, 301):  # a busy minute: 6 in view, peak 9
+        stats.frame(now + step * 0.2, 0.01, [], in_view=9 if step == 150 else 6)
+    assert stats.occupancy_peak == 9
+    assert stats.occupancy_mean > 5.9
+    assert congestion(stats) == "high"
+
+
+def test_an_empty_road_is_not_congested() -> None:
+    stats = StreamStatistics(congestion_min_seconds=0.0)
+    stats.frame(0.0, 0.01, [], in_view=0)
+    assert stats.congestion == "low"

@@ -155,6 +155,12 @@ def main() -> None:
     if event is not None:
         expect("the result belongs to a listed stream", event.get("stream") in streams, True)
         expect("the result carries statistics", "stats" in event and "objects" in event, True)
+        stats = event.get("stats", {})
+        expect(
+            "the statistics include trend and occupancy",
+            {"trend", "occupancy_mean", "congestion"} <= set(stats),
+            True,
+        )
 
     expect("logout succeeds", client.request("POST", "/api/auth/logout")[0], 204)
     expect("session is gone after logout", client.request("GET", "/api/auth/session")[0], 401)

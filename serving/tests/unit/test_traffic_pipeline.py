@@ -256,3 +256,21 @@ async def test_hub_limits_subscribers_and_sends_heartbeats() -> None:
     await stream.aclose()
     traffic.publish()
     await asyncio.sleep(0.01)
+
+
+def test_events_carry_the_flow_and_density_figures() -> None:
+    stream = worker(trend_bucket_seconds=10.0)
+    stream.resync(EPOCH)
+    event, _ = stream.advance(EPOCH)
+    assert event is not None
+    stats = event.stats
+    assert stats.trend == [sum(stats.counted.values())]
+    assert stats.trend_bucket_seconds == 10.0
+    assert stats.occupancy_peak == sum(stats.in_view.values())
+    assert stats.average_per_minute == {}  # not before a minute of analysis
+    assert stats.congestion is None
+
+
+def test_congestion_thresholds_must_increase() -> None:
+    with pytest.raises(ValueError, match="congestion_thresholds"):
+        DummyTrafficArgs(congestion_thresholds=(1.25, 0.8))
