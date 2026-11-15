@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { analyze, ApiError, hasSession, logout } from './api/client.ts'
 import type { AnalysisResponse } from './api/types.ts'
+import { Clock } from './components/Clock.tsx'
 import { LoginForm } from './components/LoginForm.tsx'
 import { ResultView } from './components/ResultView.tsx'
 import { TrafficPage } from './components/TrafficPage.tsx'
@@ -94,14 +95,37 @@ function App() {
 
   return (
     <>
-      <header>
-        <h1>RoadScan</h1>
-        <p className="muted">Road damage detection and live traffic analysis</p>
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <div>
+            <h1>RoadScan</h1>
+            <p>Road damage detection and live traffic analysis</p>
+          </div>
+        </div>
         {session === 'authenticated' ? (
-          <button type="button" className="link" onClick={() => void signOut()}>
-            Log out
-          </button>
+          <nav aria-label="Pages">
+            <a href="#photo" aria-current={page === 'photo' ? 'page' : undefined}>
+              Photo analysis
+            </a>
+            <a href="#traffic" aria-current={page === 'traffic' ? 'page' : undefined}>
+              Live traffic
+            </a>
+          </nav>
         ) : null}
+        <div className="topbar-status">
+          {session === 'unreachable' ? (
+            <span className="status down">Service offline</span>
+          ) : session === 'checking' ? null : (
+            <span className="status ok">Service online</span>
+          )}
+          <Clock />
+          {session === 'authenticated' ? (
+            <button type="button" className="ghost" onClick={() => void signOut()}>
+              Log out
+            </button>
+          ) : null}
+        </div>
       </header>
       <main>
         {session === 'checking' ? <p role="status">Loading…</p> : null}
@@ -119,16 +143,6 @@ function App() {
               setSession('authenticated')
             }}
           />
-        ) : null}
-        {session === 'authenticated' ? (
-          <nav aria-label="Pages">
-            <a href="#photo" aria-current={page === 'photo' ? 'page' : undefined}>
-              Photo analysis
-            </a>
-            <a href="#traffic" aria-current={page === 'traffic' ? 'page' : undefined}>
-              Live traffic
-            </a>
-          </nav>
         ) : null}
         {session === 'authenticated' && page === 'traffic' ? (
           <TrafficPage onUnauthorized={sessionExpired} />
