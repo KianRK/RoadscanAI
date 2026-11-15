@@ -18,6 +18,12 @@ interface Loaded {
   timelines: Map<string, Timeline>
 }
 
+const CONNECTION: Record<Connection, { text: string; tone: string }> = {
+  connecting: { text: 'Connecting…', tone: 'warn' },
+  live: { text: 'Feed live', tone: 'ok' },
+  interrupted: { text: 'Reconnecting…', tone: 'warn' },
+}
+
 /** After the server refused the event stream, ask again this much later. */
 const RETRY_MS = 5000
 
@@ -91,17 +97,21 @@ export function TrafficPage({ onUnauthorized }: Props) {
   const { list, receivedAt, timelines } = loaded
   return (
     <>
-      <p className="muted">
-        Road users are detected and tracked on the server, a few frames per second, for as long as
-        somebody is watching. Detector: {list.detector_version}.
-        {connection === 'interrupted' ? ' Reconnecting…' : ''}
-      </p>
+      <div className="page-head">
+        <p className="muted">
+          Road users are detected and tracked on the server, a few frames per second, for as long
+          as somebody is watching. Detector: {list.detector_version}.
+        </p>
+        <span className={`status ${CONNECTION[connection].tone}`} role="status">
+          {CONNECTION[connection].text}
+        </span>
+      </div>
       {error ? (
         <p className="error" role="alert">
           {error}
         </p>
       ) : null}
-      {list.streams.map((stream) => {
+      {list.streams.map((stream, index) => {
         const timeline = timelines.get(stream.id)
         return timeline ? (
           <StreamPanel
@@ -111,6 +121,7 @@ export function TrafficPage({ onUnauthorized }: Props) {
             delaySeconds={list.delay_seconds}
             timeline={timeline}
             classes={list.classes}
+            index={index}
           />
         ) : null
       })}

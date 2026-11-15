@@ -59,10 +59,23 @@ export interface TrackedObject {
   box: [number, number, number, number]
 }
 
+export type Congestion = 'low' | 'moderate' | 'high'
+
 export interface StreamStats {
   in_view: Record<string, number>
   counted: Record<string, number>
   per_minute: number
+  per_minute_by_class: Record<string, number>
+  /** Per class and minute of analysis time; empty during the first minute. */
+  average_per_minute: Record<string, number>
+  analysis_seconds: number
+  /** Newly counted per bucket of analysis time, oldest first; the last one is filling. */
+  trend: number[]
+  trend_bucket_seconds: number
+  occupancy_mean: number
+  occupancy_peak: number
+  /** Relative to the stream's own long-run mean; null until enough has been analysed. */
+  congestion: Congestion | null
   analysis_fps: number
   inference_ms: number
   dropped_frames: number

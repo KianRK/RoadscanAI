@@ -48,19 +48,67 @@ test('draws the boxes and statistics of the result for the frame on screen', asy
   expect(boxes[0]).toHaveTextContent('car')
   expect(boxes[1]).toHaveTextContent('tram / train')
 
+  // In view, last 60 s, average per minute (sum over classes), counted.
   const figures = within(panel)
     .getAllByRole('definition')
-    .map((node) => node.textContent)
-  expect(figures).toEqual(['2', '8', '19']) // in view, new per minute, counted
+    .flatMap((node) => node.querySelector('.value')?.textContent ?? [])
+  expect(figures).toEqual(['2', '8', '7.6', '19'])
+  expect(within(panel).getByText('avg 2.4 · peak 5 (1 min)')).toBeInTheDocument()
+  expect(within(panel).getByText('over 2 min of analysis')).toBeInTheDocument()
+  // In view, last 60 s, average per minute, counted.
   const person = within(panel).getByRole('row', { name: /person/ })
   expect(
     within(person)
       .getAllByRole('cell')
       .map((cell) => cell.textContent),
-  ).toEqual(['0', '5'])
+  ).toEqual(['0', '2', '2.0', '5'])
   expect(
     within(panel).getByText(/5\.0 frames analysed per second, 31 ms per frame/),
   ).toBeInTheDocument()
+  expect(within(panel).getByText('Congestion: Moderate')).toBeInTheDocument()
+  expect(within(panel).getByText('CAM 01', { selector: '.eyebrow' })).toBeInTheDocument()
+})
+
+test('shows the trend of complete intervals and the class mix', async () => {
+  const { panel, source } = await renderWithStream()
+
+  act(() => {
+    source.open()
+    source.send(streamEvent())
+  })
+
+  // The fixture's last bucket (1) is still filling and is left out: latest complete is 2.
+  expect(
+    await within(panel).findByRole('img', {
+      name: 'New road users per 15 seconds: latest 2, highest 5',
+    }),
+  ).toBeInTheDocument()
+  expect(
+    within(panel).getByRole('img', {
+      name: 'Class mix: person 26 %, car 63 %, tram / train 11 %',
+    }),
+  ).toBeInTheDocument()
+  const shares = within(panel)
+    .getAllByRole('term')
+    .filter((term) => /Heavy|Pedestrians/.test(term.textContent))
+    .map((term) => `${term.textContent}: ${term.nextElementSibling?.textContent ?? ''}`)
+  expect(shares).toEqual(['Heavy vehicles: 0 %', 'Pedestrians and two-wheelers: 26 %'])
+})
+
+test('before the first minute there are no averages and no congestion level', async () => {
+  const { panel, source } = await renderWithStream()
+  const early = streamEvent()
+  act(() => {
+    source.open()
+    source.send({
+      ...early,
+      stats: { ...early.stats, average_per_minute: {}, congestion: null, trend: [3] },
+    })
+  })
+
+  expect(await within(panel).findByText('after the first minute')).toBeInTheDocument()
+  expect(within(panel).queryByText(/Congestion:/)).not.toBeInTheDocument()
+  expect(within(panel).getByText(/Collecting data/)).toBeInTheDocument()
 })
 
 test('ignores results of frames the video has not reached yet', async () => {

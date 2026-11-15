@@ -466,11 +466,79 @@ button.ghost:hover {
 }
 
 /* Live traffic */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.page-head p {
+  margin: 0;
+  flex: 1 1 30rem;
+}
+
+.page-head .status {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stream-panel {
+  margin-top: 1rem;
+}
+
+.stream-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.stream-head .eyebrow {
+  margin-bottom: 0.15rem;
+  color: var(--accent);
+}
+
+.stream-head h2 {
+  margin: 0;
+}
+
+.stream-head p {
+  margin: 0;
+}
+
+.congestion {
+  padding: 0.2rem 0.65rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.congestion.low {
+  color: var(--ok);
+}
+
+.congestion.moderate {
+  color: var(--warn);
+}
+
+.congestion.high {
+  color: var(--danger);
+}
+
 .stream {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 1.25rem;
-  margin-top: 1rem;
   align-items: start;
 }
 
@@ -528,6 +596,33 @@ button.ghost:hover {
   margin-right: 0.4em;
   border-radius: 50%;
   background: #e5484d;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live::before {
+    animation: none;
+  }
+}
+
+.camera-id {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 65%);
+  color: #cfe3f5;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
 }
 
 /* Road-user classes: the Okabe-Ito palette, distinguishable with colour blindness. */
@@ -596,13 +691,13 @@ button.ghost:hover {
 
 .figures {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.9rem;
 }
 
-.figures div {
-  padding: 0.5rem 0.6rem;
+.figures > div {
+  padding: 0.55rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-2);
@@ -610,15 +705,140 @@ button.ghost:hover {
 
 .figures dt {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .figures dd {
   margin: 0;
+}
+
+.figures .value {
+  display: block;
   font-family: var(--mono);
-  font-size: 1.45rem;
+  font-size: 1.6rem;
   font-weight: 600;
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
+}
+
+.figure-note {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Trend and class mix, below the video. */
+.charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 560px) {
+  .charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel-block {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.panel-block .eyebrow {
+  margin-bottom: 0.45rem;
+}
+
+.panel-block > .muted {
+  margin: 0;
+}
+
+.trend {
+  margin: 0;
+}
+
+.trend svg {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+
+.trend .gridline {
+  stroke: var(--border);
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend .area {
+  fill: var(--accent-soft);
+}
+
+.trend .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend figcaption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.trend strong,
+.shares dd {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.mix {
+  display: flex;
+  height: 0.8rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.mix span {
+  background: var(--box);
+}
+
+.mix span + span {
+  border-left: 1px solid var(--surface-2);
+}
+
+.shares {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+}
+
+.shares div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.shares dt {
+  color: var(--muted);
+}
+
+.shares dd {
+  margin: 0;
+  font-family: var(--mono);
 }
 
 .stream-stats table {
