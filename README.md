@@ -236,9 +236,10 @@ What to keep in mind:
   `production`, so the application loads it. Version numbers differ per registry (2 in
   the local one, 3 in Azure ML, where the first run was registered twice). The demo
   recordings were made with the first run.
-- **The quality gate is provisional.** A model is registered only if test mAP@0.5
-  reaches 0.50. That number is a placeholder chosen before the first run, not a
-  requirement derived from a use case.
+- **The quality gate guards against regressions, not a use case.** A model is
+  registered only if test mAP@0.5 reaches 0.60: a margin below the full run (0.662),
+  so a clearly worse retrain does not replace it. The value is not derived from any
+  requirement of road inspection.
 - **Potholes are the weakest class** (fewest training boxes: 4,807 of 34,938).
 - **Low-confidence detections are shown.** The application displays boxes from a
   confidence of 0.25; the text says when the detector is unsure.
@@ -528,7 +529,8 @@ deployment).
 ## Limitations
 
 - **Demo-grade model.** See the [model card](#model-card): a single training configuration on a
-  laptop GPU, a provisional quality gate, no comparison with published results.
+  laptop GPU, a quality gate that only guards against regressions, no comparison with
+  published results.
 - **Severity is a heuristic** in code, not a measurement.
 - **One replica by design.** The application's rate limiter and the live-traffic clock
   and counters live in memory; with more than one `Api` or `Traffic` replica they would

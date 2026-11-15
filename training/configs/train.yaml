@@ -47,6 +47,7 @@ mlflow:
 gate:
   # The model is registered only if this test-split metric is at least the threshold.
   metric: map50    # map50 | map50_95
-  threshold: 0.50
+  # Set below the full run's 0.662 (test mAP@0.5) so a clearly worse retrain is not registered.
+  threshold: 0.60
   # Alias set on the newly registered version; the serving stack loads this alias.
   alias: production
