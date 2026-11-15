@@ -205,14 +205,14 @@ parameters, per-epoch training metrics, test-split mAP@0.5, mAP@0.5:0.95 and per
 
 ## Model card
 
-**Road damage detector** (`roadscan-detector`, version 1)
+**Road damage detector** (`roadscan-detector`, full training run)
 
 | | |
 | --- | --- |
 | Architecture | YOLO26s (Ultralytics), initialised from the COCO-pretrained checkpoint, exported to ONNX with NMS |
 | Task | Bounding boxes for D00 longitudinal crack, D10 transverse crack, D20 alligator crack, D40 pothole |
 | Training data | RDD2022 without Norway: Japan, India, Czech Republic, United States, China (motorbike and drone); 24,178 training, 3,023 validation and 3,023 test images |
-| Training run | 10 epochs, batch 24, 640 px, mixed precision, seed 42, on an RTX 4060 Laptop GPU (8 GB) |
+| Training run | Up to 100 epochs with early stopping (patience 20): stopped after 88, best validation result at epoch 68; batch 20, 640 px, mixed precision, seed 42; 6.3 h on an RTX 4060 Laptop GPU (8 GB) |
 | Intended use | Demonstration. Photos taken from a vehicle or on foot, looking along the road |
 | Not intended for | Road inspection, maintenance decisions or any safety-relevant use |
 
@@ -220,7 +220,8 @@ Results on the held-out test split (never used for training or model selection):
 
 | | mAP@0.5 | AP@0.5 D00 | D10 | D20 | D40 | mAP@0.5:0.95 | Precision | Recall |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Version 1 | 0.582 | 0.612 | 0.570 | 0.661 | 0.484 | 0.297 | 0.614 | 0.544 |
+| Full run (in production) | 0.662 | 0.698 | 0.649 | 0.730 | 0.571 | 0.355 | 0.659 | 0.623 |
+| First run (10 epochs, batch 24) | 0.582 | 0.612 | 0.570 | 0.661 | 0.484 | 0.297 | 0.614 | 0.544 |
 
 What to keep in mind:
 
@@ -229,11 +230,15 @@ What to keep in mind:
   training data, because the official test labels are not public. Norway's images are
   wide survey-vehicle frames of about 3650 x 2044 px in which damage becomes very small
   at 640 px; that kind of imagery is handled worse.
-- **A short run.** Version 1 comes from 10 epochs. The committed configuration is the
-  one for a full run (100 epochs, batch 20, early stopping), which has not been done yet.
+- **Two runs.** The first, 10-epoch run was used while the application was built; the
+  full run uses the committed configuration
+  ([`training/configs/train.yaml`](training/configs/train.yaml)) and carries the alias
+  `production`, so the application loads it. Version numbers differ per registry (2 in
+  the local one, 3 in Azure ML, where the first run was registered twice). The demo
+  recordings were made with the first run.
 - **The quality gate is provisional.** A model is registered only if test mAP@0.5
   reaches 0.50. That number is a placeholder chosen before the first run, not a
-  requirement derived from a use case; it will be set again after the full run.
+  requirement derived from a use case.
 - **Potholes are the weakest class** (fewest training boxes: 4,807 of 34,938).
 - **Low-confidence detections are shown.** The application displays boxes from a
   confidence of 0.25; the text says when the detector is unsure.
@@ -522,8 +527,8 @@ deployment).
 
 ## Limitations
 
-- **Demo-grade model.** See the [model card](#model-card): a short training run, a
-  provisional quality gate, no comparison with published results.
+- **Demo-grade model.** See the [model card](#model-card): a single training configuration on a
+  laptop GPU, a provisional quality gate, no comparison with published results.
 - **Severity is a heuristic** in code, not a measurement.
 - **One replica by design.** The application's rate limiter and the live-traffic clock
   and counters live in memory; with more than one `Api` or `Traffic` replica they would

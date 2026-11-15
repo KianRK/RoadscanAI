@@ -80,7 +80,7 @@ After the first apply:
    uv sync --extra gpu --extra azure
    ls runs/*/weights/best.pt        # pick the run to register
    UV_NO_SYNC=1 MLFLOW_TRACKING_URI="$(terraform -chdir=../infra output -raw mlflow_tracking_uri)" \
-     uv run python -m rdd.pipeline --weights runs/20261112-082410/weights/best.pt
+     uv run python -m rdd.pipeline --weights runs/20261114-201510/weights/best.pt
    ```
 
    The detector of the live-traffic page is registered the same way (it is a published
