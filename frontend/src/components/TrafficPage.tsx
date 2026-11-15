@@ -100,7 +100,9 @@ export function TrafficPage({ onUnauthorized }: Props) {
       <div className="page-head">
         <p className="muted">
           Road users are detected and tracked on the server, a few frames per second, for as long
-          as somebody is watching. Detector: {list.detector_version}.
+          as somebody is watching. Detector: {list.detector_version}, a general-purpose model
+          pretrained on COCO and not fine-tuned for these cameras: it misses some road users and
+          mislabels others (a tram is often taken for a bus), so all figures are indicative.
         </p>
         <span className={`status ${CONNECTION[connection].tone}`} role="status">
           {CONNECTION[connection].text}

@@ -335,8 +335,14 @@ as it would for a live source.
     1.25 times: high). Reported after two minutes of analysis.
   - The analysis speed (frames per second, model time per frame, skipped frames).
 
-Limits: the counts are estimates. There is no ground truth for the videos; an object
-that is hidden for more than three seconds is counted again, and road users already in
+Limits: the detector is YOLO26n as pretrained on COCO, **not fine-tuned** on traffic-camera
+footage or on these two scenes. It can miss small, distant or partly hidden road users and
+confuses similar classes (a tram is often reported as a bus). Its accuracy here is
+therefore expected to be lower than that of a model fine-tuned on such footage (not
+measured: there is no ground truth), and every figure on the page inherits its errors.
+Fine-tuning was out of scope: the page demonstrates the streaming and statistics
+pipeline, not detection quality. The counts are estimates for further reasons too: an
+object that is hidden for more than three seconds is counted again, and road users already in
 view when the analysis starts, resumes or the video loops are shown but not counted,
 because when they arrived is unknown. The congestion level is a heuristic relative to
 each camera's own normal, not a traffic-engineering measure; with a looped clip,
@@ -553,6 +559,9 @@ deployment).
 - **vLLM backend untested.** `llm.backend: vllm` exists in the code for a GPU node, but
   no GPU image is built and it was never run; the free trial has no GPU quota.
 - **`terraform destroy`** is documented but was not exercised.
+- **Traffic detector not fine-tuned.** The live-traffic page uses COCO-pretrained YOLO26n
+  as is; it misses and mislabels road users in these scenes, so its figures are
+  indicative only.
 - **Traffic counts are estimates**; the tracker settings were tuned by eye on the two
   videos, and the congestion level is a heuristic (see [Live traffic](#live-traffic)).
 - **Not verified on AKS:** the live-traffic page in a real browser (it was measured
